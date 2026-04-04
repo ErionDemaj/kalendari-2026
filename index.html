@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalendar 2026</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    #statusMessage {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    .year-calendar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .month {
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .month h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+
+    .day {
+      height: 40px;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .free {
+      background: green;
+    }
+
+    .busy {
+      background: red;
+    }
+
+    .empty {
+      height: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Kalendar 2026</h1>
+  <div id="statusMessage">Duke ngarkuar...</div>
+  <div id="calendar" class="year-calendar"></div>
+
+  <script>
+    const SUPABASE_URL = "https://hlqkxvjonteykjhiddhz.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscWt4dmpvbnRleWtqaGlkZGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTI3MTksImV4cCI6MjA5MDg4ODcxOX0.m3yYjUAllhp0t3me9NPBW0pImaDZt3UL-SzcZg2nkCY";
+
+    const statusMessage = document.getElementById("statusMessage");
+    const calendar = document.getElementById("calendar");
+
+    if (
+      SUPABASE_URL === "VENDOS_KETU_URL_E_SUPABASE" ||
+      SUPABASE_KEY === "VENDOS_KETU_ANON_KEY"
+    ) {
+      statusMessage.textContent = "Gabim: nuk ke vendosur URL dhe KEY të Supabase.";
+      throw new Error("Mungon SUPABASE_URL ose SUPABASE_KEY");
+    }
+
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const year = 2026;
+
+    const monthNames = [
+      "Janar", "Shkurt", "Mars", "Prill", "Maj", "Qershor",
+      "Korrik", "Gusht", "Shtator", "Tetor", "Nëntor", "Dhjetor"
+    ];
+
+    const weekDays = ["Hën", "Mar", "Mër", "Enj", "Pre", "Sht", "Die"];
+
+    function formatDate(year, month, day) {
+      const m = String(month + 1).padStart(2, "0");
+      const d = String(day).padStart(2, "0");
+      return `${year}-${m}-${d}`;
+    }
+
+    function daysInMonth(year, month) {
+      return new Date(year, month + 1, 0).getDate();
+    }
+
+    function getMondayFirstDay(jsDay) {
+      return jsDay === 0 ? 6 : jsDay - 1;
+    }
+
+    async function loadCalendar() {
+      try {
+        statusMessage.textContent = "Duke lexuar të dhënat...";
+
+        const { data, error } = await client
+          .from("dates")
+          .select("*");
+
+        if (error) {
+          console.error("Gabim nga Supabase:", error);
+          statusMessage.textContent = "Gabim nga Supabase: " + error.message;
+          return;
+        }
+
+        const rows = Array.isArray(data) ? data : [];
+
+        const dateMap = {};
+        rows.forEach(item => {
+          dateMap[item.date] = item;
+        });
+
+        calendar.innerHTML = "";
+
+        for (let month = 0; month < 12; month++) {
+          const monthBox = document.createElement("div");
+          monthBox.className = "month";
+
+          const title = document.createElement("h2");
+          title.textContent = monthNames[month];
+          monthBox.appendChild(title);
+
+          const weekdaysRow = document.createElement("div");
+          weekdaysRow.className = "weekdays";
+
+          weekDays.forEach(dayName => {
+            const wd = document.createElement("div");
+            wd.textContent = dayName;
+            weekdaysRow.appendChild(wd);
+          });
+
+          monthBox.appendChild(weekdaysRow);
+
+          const daysGrid = document.createElement("div");
+          daysGrid.className = "days";
+
+          const firstDay = new Date(year, month, 1).getDay();
+          const offset = getMondayFirstDay(firstDay);
+          const totalDays = daysInMonth(year, month);
+
+          for (let i = 0; i < offset; i++) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            daysGrid.appendChild(empty);
+          }
+
+          for (let day = 1; day <= totalDays; day++) {
+            const fullDate = formatDate(year, month, day);
+            const item = dateMap[fullDate];
+            const status = item?.status === "busy" ? "busy" : "free";
+
+            const btn = document.createElement("button");
+            btn.className = `day ${status}`;
+            btn.textContent = day;
+            btn.title = item?.note || "";
+
+            btn.onclick = async () => {
+              const currentNote = item?.note || "";
+              const note = prompt(`Shënim për ${fullDate}:`, currentNote);
+
+              if (note === null) return;
+
+              const isBusy = confirm(
+                "Shtyp OK për 'e zënë'.\nShtyp Cancel për 'e lirë'."
+              );
+
+              const newStatus = isBusy ? "busy" : "free";
+
+              const { error: saveError } = await client
+                .from("dates")
+                .upsert(
+                  {
+                    date: fullDate,
+                    status: newStatus,
+                    note: note
+                  },
+                  { onConflict: "date" }
+                );
+
+              if (saveError) {
+                console.error("Gabim gjatë ruajtjes:", saveError);
+                alert("Gabim gjatë ruajtjes: " + saveError.message);
+                return;
+              }
+
+              loadCalendar();
+            };
+
+            daysGrid.appendChild(btn);
+          }
+
+          monthBox.appendChild(daysGrid);
+          calendar.appendChild(monthBox);
+        }
+
+        statusMessage.textContent = "Kalendari u ngarkua me sukses.";
+      } catch (err) {
+        console.error("Gabim në kod:", err);
+        statusMessage.textContent = "Gabim në kod: " + err.message;
+      }
+    }
+
+
+    loadCalendar();
+  </script>
+ 
+</body>
+</html>
