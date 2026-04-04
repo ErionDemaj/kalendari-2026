@@ -17,13 +17,17 @@
 
     h1 {
       text-align: center;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
 
     #statusMessage {
       text-align: center;
       margin-bottom: 20px;
       font-weight: bold;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     .year-calendar {
@@ -36,7 +40,7 @@
       background: white;
       padding: 12px;
       border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
     .month h2 {
@@ -65,6 +69,7 @@
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
+      font-size: 14px;
     }
 
     .free {
@@ -78,28 +83,172 @@
     .empty {
       height: 40px;
     }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 9999;
+    }
+
+    .modal-box {
+      background: white;
+      width: 100%;
+      max-width: 520px;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      box-sizing: border-box;
+    }
+
+    .modal-box h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 22px;
+    }
+
+    #noteInput,
+    #passwordInput {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-sizing: border-box;
+    }
+
+    #noteInput {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .modal-buttons button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .busy-btn {
+      background: red;
+      color: white;
+    }
+
+    .free-btn {
+      background: green;
+      color: white;
+    }
+
+    .close-btn {
+      background: #ddd;
+      color: black;
+    }
+
+    .login-btn {
+      background: #111;
+      color: white;
+      width: 100%;
+      margin-top: 14px;
+    }
+
+    #loginError {
+      color: red;
+      margin-top: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 12px;
+      }
+
+      .year-calendar {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-box {
+        max-width: 100%;
+        padding: 16px;
+        border-radius: 12px;
+      }
+
+      #noteInput {
+        min-height: 180px;
+        font-size: 16px;
+      }
+
+      .modal-buttons button {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <h1>Kalendar 2026</h1>
-  <div id="statusMessage">Duke ngarkuar...</div>
-  <div id="calendar" class="year-calendar"></div>
+  <div id="loginScreen" class="modal">
+    <div class="modal-box">
+      <h3>Hyr në kalendar</h3>
+      <input id="passwordInput" type="password" placeholder="Shkruaj password-in" />
+      <button id="loginBtn" class="login-btn">Hyr</button>
+      <div id="loginError"></div>
+    </div>
+  </div>
+
+  <div id="appContent" class="hidden">
+    <h1>Kalendar 2026</h1>
+    <div id="statusMessage">Duke ngarkuar...</div>
+    <div id="calendar" class="year-calendar"></div>
+  </div>
+
+  <div id="noteModal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="modalDateTitle">Shënim</h3>
+
+      <textarea id="noteInput" placeholder="Shkruaj shënimin këtu..."></textarea>
+
+      <div class="modal-buttons">
+        <button id="saveBusyBtn" class="busy-btn">Ruaj si e zënë</button>
+        <button id="saveFreeBtn" class="free-btn">Ruaj si e lirë</button>
+        <button id="closeModalBtn" class="close-btn">Mbyll</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const SUPABASE_URL = "https://hlqkxvjonteykjhiddhz.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscWt4dmpvbnRleWtqaGlkZGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTI3MTksImV4cCI6MjA5MDg4ODcxOX0.m3yYjUAllhp0t3me9NPBW0pImaDZt3UL-SzcZg2nkCY";
+    const APP_PASSWORD = "000000";
+
+    const loginScreen = document.getElementById("loginScreen");
+    const appContent = document.getElementById("appContent");
+    const passwordInput = document.getElementById("passwordInput");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginError = document.getElementById("loginError");
 
     const statusMessage = document.getElementById("statusMessage");
     const calendar = document.getElementById("calendar");
 
-    if (
-      SUPABASE_URL === "VENDOS_KETU_URL_E_SUPABASE" ||
-      SUPABASE_KEY === "VENDOS_KETU_ANON_KEY"
-    ) {
-      statusMessage.textContent = "Gabim: nuk ke vendosur URL dhe KEY të Supabase.";
-      throw new Error("Mungon SUPABASE_URL ose SUPABASE_KEY");
-    }
+    const noteModal = document.getElementById("noteModal");
+    const modalDateTitle = document.getElementById("modalDateTitle");
+    const noteInput = document.getElementById("noteInput");
+    const saveBusyBtn = document.getElementById("saveBusyBtn");
+    const saveFreeBtn = document.getElementById("saveFreeBtn");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+
+    let selectedDate = "";
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -125,6 +274,55 @@
     function getMondayFirstDay(jsDay) {
       return jsDay === 0 ? 6 : jsDay - 1;
     }
+
+    function openModal(fullDate, currentNote = "") {
+      selectedDate = fullDate;
+      modalDateTitle.textContent = `Shënim për ${fullDate}`;
+      noteInput.value = currentNote;
+      noteModal.classList.remove("hidden");
+    }
+
+    function closeModal() {
+      noteModal.classList.add("hidden");
+      selectedDate = "";
+      noteInput.value = "";
+    }
+
+    async function saveDateStatus(newStatus) {
+      if (!selectedDate) return;
+
+      const note = noteInput.value;
+
+      const { error: saveError } = await client
+        .from("dates")
+        .upsert(
+          {
+            date: selectedDate,
+            status: newStatus,
+            note: note
+          },
+          { onConflict: "date" }
+        );
+
+      if (saveError) {
+        alert("Gabim gjatë ruajtjes: " + saveError.message);
+        console.error(saveError);
+        return;
+      }
+
+      closeModal();
+      loadCalendar();
+    }
+
+    saveBusyBtn.onclick = () => saveDateStatus("busy");
+    saveFreeBtn.onclick = () => saveDateStatus("free");
+    closeModalBtn.onclick = closeModal;
+
+    noteModal.onclick = (e) => {
+      if (e.target === noteModal) {
+        closeModal();
+      }
+    };
 
     async function loadCalendar() {
       try {
@@ -191,36 +389,9 @@
             btn.textContent = day;
             btn.title = item?.note || "";
 
-            btn.onclick = async () => {
+            btn.onclick = () => {
               const currentNote = item?.note || "";
-              const note = prompt(`Shënim për ${fullDate}:`, currentNote);
-
-              if (note === null) return;
-
-              const isBusy = confirm(
-                "Shtyp OK për 'e zënë'.\nShtyp Cancel për 'e lirë'."
-              );
-
-              const newStatus = isBusy ? "busy" : "free";
-
-              const { error: saveError } = await client
-                .from("dates")
-                .upsert(
-                  {
-                    date: fullDate,
-                    status: newStatus,
-                    note: note
-                  },
-                  { onConflict: "date" }
-                );
-
-              if (saveError) {
-                console.error("Gabim gjatë ruajtjes:", saveError);
-                alert("Gabim gjatë ruajtjes: " + saveError.message);
-                return;
-              }
-
-              loadCalendar();
+              openModal(fullDate, currentNote);
             };
 
             daysGrid.appendChild(btn);
@@ -237,9 +408,27 @@
       }
     }
 
+    function unlockApp() {
+      loginScreen.classList.add("hidden");
+      appContent.classList.remove("hidden");
+      loadCalendar();
+    }
 
-    loadCalendar();
+    loginBtn.onclick = () => {
+      if (passwordInput.value === APP_PASSWORD) {
+        loginError.textContent = "";
+        unlockApp();
+      } else {
+        loginError.textContent = "Password gabim.";
+      }
+    };
+
+    passwordInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        loginBtn.click();
+      }
+    });
   </script>
- 
+
 </body>
 </html>
